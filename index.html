@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="假期最优解：结合兴趣偏好、假期约束与价格容忍度，比较加拿大和日本的出行方案。"
+    />
+    <title>假期最优解｜AI 出境旅行决策助手</title>
+    <link rel="icon" href="assets/hero-canada-japan.png" type="image/png" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="返回顶部">
+        <span class="brand-mark" aria-hidden="true">假</span>
+        <span>假期最优解</span>
+      </a>
+      <p class="demo-status"><span class="status-dot" aria-hidden="true"></span>V2 OTA 接入版</p>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <img
+          class="hero-image"
+          src="assets/hero-canada-japan.png"
+          alt="加拿大班夫山湖与日本京都街景融合的旅行画面"
+        />
+        <div class="hero-shade" aria-hidden="true"></div>
+        <div class="hero-content">
+          <p class="eyebrow">AI 出境旅行决策助手</p>
+          <h1 id="hero-title">假期有限，<br />去更值得的地方。</h1>
+          <p class="hero-copy">
+            不只找最低价。把兴趣、请假和真实时间成本放在一起，决定这次旅行去哪更合适。
+          </p>
+          <a class="primary-action" href="#planner">开始规划</a>
+        </div>
+        <div class="hero-route" aria-label="当前支持上海前往加拿大或日本">
+          <span>上海</span>
+          <span class="route-arrow" aria-hidden="true">→</span>
+          <span>加拿大 / 日本</span>
+        </div>
+      </section>
+
+      <section class="planner-band" id="planner" aria-labelledby="planner-title">
+        <div class="planner-inner">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">本次旅行</p>
+              <h2 id="planner-title">先确定什么值得，再决定怎么买</h2>
+            </div>
+            <p class="data-note">每次查询都会展示报价平台、抓价时间及官网核验能力；未授权平台不会伪装成实时价。</p>
+          </div>
+
+          <div class="workspace">
+            <aside class="control-panel" aria-label="旅行偏好与约束">
+              <form id="planner-form">
+                <fieldset>
+                  <legend>目的地</legend>
+                  <div class="field-grid two-columns">
+                    <label class="field">
+                      <span>从哪里出发</span>
+                      <select id="origin" name="origin">
+                        <option value="上海">上海（PVG / SHA）</option>
+                      </select>
+                    </label>
+                    <div class="field">
+                      <span>想去哪个国家</span>
+                      <div class="segmented" role="group" aria-label="选择目的地国家">
+                        <button type="button" class="segment is-active" data-country="canada">加拿大</button>
+                        <button type="button" class="segment" data-country="japan">日本</button>
+                      </div>
+                      <input type="hidden" id="country" name="country" value="canada" />
+                    </div>
+                  </div>
+                </fieldset>
+
+                <fieldset>
+                  <legend>假期约束</legend>
+                  <label class="field">
+                    <span>可出发日期</span>
+                    <div class="date-pair">
+                      <input type="date" id="start-date" name="startDate" value="2026-09-25" min="2026-08-01" />
+                      <span aria-hidden="true">至</span>
+                      <input type="date" id="end-date" name="endDate" value="2026-10-08" min="2026-08-02" />
+                    </div>
+                  </label>
+                  <div class="field-grid two-columns compact-grid">
+                    <label class="field">
+                      <span>希望玩几天</span>
+                      <select id="duration" name="duration">
+                        <option value="7">7 天</option>
+                        <option value="9" selected>9 天</option>
+                        <option value="10">10 天</option>
+                        <option value="12">12 天</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>最多请假</span>
+                      <select id="leave-days" name="leaveDays">
+                        <option value="1">1 天</option>
+                        <option value="2">2 天</option>
+                        <option value="3" selected>3 天</option>
+                        <option value="4">4 天</option>
+                        <option value="5">5 天</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="field-grid two-columns compact-grid">
+                    <label class="field">
+                      <span>同行人数</span>
+                      <span class="stepper">
+                        <button type="button" class="step-button" data-step="down" aria-label="减少同行人数">−</button>
+                        <input id="travelers" name="travelers" type="number" min="1" max="8" value="2" inputmode="numeric" />
+                        <button type="button" class="step-button" data-step="up" aria-label="增加同行人数">＋</button>
+                      </span>
+                    </label>
+                    <label class="toggle-field" for="first-visit">
+                      <span>
+                        <strong>第一次去</strong>
+                        <small>优先代表性路线</small>
+                      </span>
+                      <input id="first-visit" name="firstVisit" type="checkbox" checked />
+                      <span class="toggle" aria-hidden="true"></span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset>
+                  <legend>你更在意</legend>
+                  <div class="preference-grid" id="preference-grid">
+                    <label><input type="checkbox" name="preference" value="nature" checked /><span>自然风光</span></label>
+                    <label><input type="checkbox" name="preference" value="city" /><span>城市漫游</span></label>
+                    <label><input type="checkbox" name="preference" value="culture" checked /><span>人文历史</span></label>
+                    <label><input type="checkbox" name="preference" value="food" /><span>当地美食</span></label>
+                    <label><input type="checkbox" name="preference" value="shopping" /><span>购物体验</span></label>
+                  </div>
+                </fieldset>
+
+                <fieldset>
+                  <legend>价格容忍度</legend>
+                  <label class="range-field" for="tolerance">
+                    <span>更喜欢的方案贵多少时，你会重新考虑？</span>
+                    <output id="tolerance-output" for="tolerance">人均 ¥3,000</output>
+                    <input id="tolerance" name="tolerance" type="range" min="500" max="5000" step="500" value="3000" />
+                    <span class="range-scale"><small>价格优先</small><small>体验优先</small></span>
+                  </label>
+                </fieldset>
+
+                <p class="form-error" id="form-error" role="alert" hidden></p>
+                <button class="generate-button" type="submit">生成我的旅行方案</button>
+                <button class="reset-button" type="button" id="reset-form">恢复默认条件</button>
+              </form>
+            </aside>
+
+            <section class="results-panel" aria-labelledby="results-title" aria-live="polite">
+              <div class="results-header">
+                <div>
+                  <p class="section-kicker">决策结果</p>
+                  <h2 id="results-title">上海 → 加拿大</h2>
+                  <p id="result-summary">正在准备最适合你的方案…</p>
+                </div>
+                <button class="share-button" type="button" id="share-result">分享结果</button>
+              </div>
+
+              <div class="decision-route" id="decision-route" aria-label="推荐路线概览"></div>
+              <div class="decision-callout" id="decision-callout"></div>
+              <section class="provider-status" id="provider-status" aria-label="OTA 接入与报价状态"></section>
+              <div class="result-grid" id="result-grid"></div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>假期最优解 V2 · 实时报价以 OTA 官方预订页最终核验结果为准。</p>
+    </footer>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
