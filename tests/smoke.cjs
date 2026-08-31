@@ -30,10 +30,33 @@ async function assert(condition, message) {
   await assert((await page.locator(".provider-item").count()) === 5, "Expected five OTA integration statuses");
   await assert((await page.locator(".quote-source").count()) === 3, "Each plan should show a quote source");
   await assert((await page.locator(".flight-itinerary").count()) === 3, "Each plan should show a flight itinerary");
+  await assert((await page.locator(".decision-process").textContent()).includes("从约束到推荐"), "Decision process should render");
+  await assert((await page.locator(".threshold-meter").count()) === 3, "Each plan should show a price threshold meter");
   await assert((await page.locator(".journey-summary").count()) >= 6, "Outbound and return summaries should be visible");
   await page.locator(".flight-itinerary").first().click();
   await assert(await page.locator(".flight-itinerary").first().evaluate((details) => details.open), "Itinerary should expand");
   await assert((await page.locator(".flight-leg").first().count()) === 1, "Expanded itinerary should show flight legs");
+
+  await page.locator("#toggle-calibrator").click();
+  await assert(!(await page.locator("#manual-quote-form").isHidden()), "Manual quote form should expand");
+  await page.locator("#manual-route").selectOption("ca-east");
+  await page.locator("#manual-provider").selectOption("去哪儿");
+  await page.locator("#manual-price").fill("5900");
+  await page.locator("#manual-captured-at").fill("2026-08-31T14:20");
+  await page.locator("#manual-deep-link").fill("https://example.com/verify");
+  await page.locator("#manual-note").fill("含税价格，截图已人工核验");
+  await page.locator("#manual-quote-form").evaluate((form) => form.requestSubmit());
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(250);
+  await assert((await page.locator(".quote-source.is-manual").count()) === 1, "Manual quote should be shown as an active source");
+  await assert((await page.locator(".manual-quote-list").textContent()).includes("加东城市线"), "Manual quote list should show the edited route");
+  await assert(
+    (await page.locator(".decision-process").textContent()).includes("手动报价校准"),
+    "Decision process should mention manual calibration",
+  );
+  await page.locator("#clear-manual-route").click();
+  await page.waitForTimeout(250);
+  await assert((await page.locator(".quote-source.is-manual").count()) === 0, "Clearing manual quote should restore demo source");
 
   const apiResponse = await page.request.post(`${baseUrl}/api/v1/flight-searches`, {
     data: {
