@@ -10,7 +10,9 @@
     <title>假期最优解｜AI 出境旅行决策助手</title>
     <link rel="icon" href="assets/hero-canada-japan.png" type="image/png" />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="ui-fixes.css" />
     <script src="app.js" defer></script>
+    <script src="ui-fixes.js" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -18,7 +20,6 @@
         <span class="brand-mark" aria-hidden="true">假</span>
         <span>假期最优解</span>
       </a>
-      <p class="demo-status"><span class="status-dot" aria-hidden="true"></span>V2.1 报价校准版</p>
     </header>
 
     <main id="top">
@@ -49,9 +50,9 @@
           <div class="section-heading">
             <div>
               <p class="section-kicker">本次旅行</p>
-              <h2 id="planner-title">先确定什么值得，再决定怎么买</h2>
+              <h2 id="planner-title">先确定什么值得，再决定怎么订</h2>
             </div>
-            <p class="data-note">每次查询都会展示报价平台、抓价时间及官网核验能力；未授权平台不会伪装成实时价。</p>
+            <p class="data-note">每次查询都会展示价格来源、记录时间和核验方式；未接入的平台不会伪装成实时价格。</p>
           </div>
 
           <div class="workspace">
@@ -168,12 +169,12 @@
               <section class="quote-calibrator" aria-labelledby="calibrator-title">
                 <div class="calibrator-header">
                   <div>
-                    <p class="section-kicker">真实报价校准</p>
-                    <h3 id="calibrator-title">用你查到的 OTA 价格修正排序</h3>
+                    <p class="section-kicker">价格校准</p>
+                    <h3 id="calibrator-title">录入你查到的平台价格</h3>
                     <p>未接入实时接口前，可手动录入平台价格、核验链接和截图凭证；数据仅保存在当前浏览器。</p>
                   </div>
                   <button class="calibrator-toggle" type="button" id="toggle-calibrator" aria-expanded="false">
-                    录入 OTA 报价
+                    录入平台价格
                   </button>
                 </div>
                 <form class="manual-quote-form" id="manual-quote-form" hidden>
@@ -219,7 +220,7 @@
                   <div class="manual-form-actions">
                     <button class="plan-action primary" type="submit">保存并重算</button>
                     <button class="plan-action" type="button" id="clear-manual-route">清除当前路线报价</button>
-                    <button class="plan-action subtle" type="button" id="clear-all-manual-quotes">清空全部手动报价</button>
+                    <button class="plan-action subtle" type="button" id="clear-all-manual-quotes">清空全部录入价格</button>
                   </div>
                 </form>
                 <div class="manual-quote-list" id="manual-quote-list"></div>
@@ -227,18 +228,14 @@
 
               <div class="decision-route" id="decision-route" aria-label="推荐路线概览"></div>
               <div class="decision-callout" id="decision-callout"></div>
-              <section class="decision-process" id="decision-process" aria-label="Agent 决策过程"></section>
-              <section class="provider-status" id="provider-status" aria-label="OTA 接入与报价状态"></section>
+              <section class="decision-process" id="decision-process" aria-label="推荐说明" hidden></section>
+              <section class="provider-status" id="provider-status" aria-label="平台报价状态"></section>
               <div class="result-grid" id="result-grid"></div>
             </section>
           </div>
         </div>
       </section>
     </main>
-
-    <footer>
-      <p>假期最优解 V2 · 实时报价以 OTA 官方预订页最终核验结果为准。</p>
-    </footer>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </body>
