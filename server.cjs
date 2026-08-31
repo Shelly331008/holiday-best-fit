@@ -74,7 +74,7 @@ const MIME_TYPES = {
   ".png": "image/png",
 };
 
-const PUBLIC_FILES = new Set(["index.html", "styles.css", "app.js"]);
+const PUBLIC_FILES = new Set(["index.html", "styles.css", "app.js", "ui-fixes.css", "ui-fixes.js"]);
 
 function sendJson(response, statusCode, value) {
   response.writeHead(statusCode, {
@@ -140,7 +140,7 @@ function buildFixtureQuote(route, body) {
     freshnessSeconds: null,
     canDeepLink: false,
     deepLinkUrl: null,
-    verificationNote: "未接入 OTA 商务账号，当前金额与航班仅用于验证产品交互。",
+    verificationNote: "未接入平台实时价格接口，当前金额与航班仅用于验证产品交互。",
     isLive: false,
     segments: fixture.segments.map((segment, index) => {
       const [direction, depAirport, depCity, arrAirport, arrCity, depTime, arrTime, flightNumber, durationMinutes, offset = 0] = segment;
