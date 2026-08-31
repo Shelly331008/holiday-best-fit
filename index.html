@@ -18,7 +18,7 @@
         <span class="brand-mark" aria-hidden="true">假</span>
         <span>假期最优解</span>
       </a>
-      <p class="demo-status"><span class="status-dot" aria-hidden="true"></span>V2 OTA 接入版</p>
+      <p class="demo-status"><span class="status-dot" aria-hidden="true"></span>V2.1 报价校准版</p>
     </header>
 
     <main id="top">
@@ -165,8 +165,69 @@
                 <button class="share-button" type="button" id="share-result">分享结果</button>
               </div>
 
+              <section class="quote-calibrator" aria-labelledby="calibrator-title">
+                <div class="calibrator-header">
+                  <div>
+                    <p class="section-kicker">真实报价校准</p>
+                    <h3 id="calibrator-title">用你查到的 OTA 价格修正排序</h3>
+                    <p>未接入实时接口前，可手动录入平台价格、核验链接和截图凭证；数据仅保存在当前浏览器。</p>
+                  </div>
+                  <button class="calibrator-toggle" type="button" id="toggle-calibrator" aria-expanded="false">
+                    录入 OTA 报价
+                  </button>
+                </div>
+                <form class="manual-quote-form" id="manual-quote-form" hidden>
+                  <div class="manual-form-grid">
+                    <label class="field">
+                      <span>对应路线</span>
+                      <select id="manual-route" name="routeId"></select>
+                    </label>
+                    <label class="field">
+                      <span>平台来源</span>
+                      <select id="manual-provider" name="provider">
+                        <option value="去哪儿">去哪儿</option>
+                        <option value="携程">携程</option>
+                        <option value="飞猪">飞猪</option>
+                        <option value="美团">美团</option>
+                        <option value="同程">同程</option>
+                        <option value="其他">其他</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>人均机票价</span>
+                      <input id="manual-price" name="price" type="number" min="1" step="1" inputmode="numeric" placeholder="例如 6267" required />
+                    </label>
+                    <label class="field">
+                      <span>报价时间</span>
+                      <input id="manual-captured-at" name="capturedAt" type="datetime-local" required />
+                    </label>
+                    <label class="field manual-link-field">
+                      <span>核验链接（选填）</span>
+                      <input id="manual-deep-link" name="deepLink" type="url" placeholder="https://..." />
+                    </label>
+                    <label class="field">
+                      <span>截图凭证（选填）</span>
+                      <input id="manual-evidence" name="evidence" type="file" accept="image/png,image/jpeg" />
+                    </label>
+                  </div>
+                  <label class="field">
+                    <span>备注（选填）</span>
+                    <input id="manual-note" name="note" type="text" maxlength="80" placeholder="例如：含税含行李，退改以平台为准" />
+                  </label>
+                  <div class="evidence-preview" id="evidence-preview" hidden></div>
+                  <p class="manual-form-note">截图仅用于本地人工核验，不上传服务器；刷新后保留报价信息，不保留图片预览。</p>
+                  <div class="manual-form-actions">
+                    <button class="plan-action primary" type="submit">保存并重算</button>
+                    <button class="plan-action" type="button" id="clear-manual-route">清除当前路线报价</button>
+                    <button class="plan-action subtle" type="button" id="clear-all-manual-quotes">清空全部手动报价</button>
+                  </div>
+                </form>
+                <div class="manual-quote-list" id="manual-quote-list"></div>
+              </section>
+
               <div class="decision-route" id="decision-route" aria-label="推荐路线概览"></div>
               <div class="decision-callout" id="decision-callout"></div>
+              <section class="decision-process" id="decision-process" aria-label="Agent 决策过程"></section>
               <section class="provider-status" id="provider-status" aria-label="OTA 接入与报价状态"></section>
               <div class="result-grid" id="result-grid"></div>
             </section>
