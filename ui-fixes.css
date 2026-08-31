@@ -1,0 +1,44 @@
+.demo-status,
+.decision-process,
+footer {
+  display: none !important;
+}
+
+.planner-inner {
+  max-width: 1600px;
+  padding-left: 3vw;
+  padding-right: 3vw;
+}
+
+.workspace {
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+}
+
+.result-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.plan-card:first-child {
+  grid-column: auto;
+}
+
+@media (max-width: 860px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .result-grid {
+    grid-template-columns: repeat(3, minmax(250px, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .planner-inner {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .result-grid {
+    grid-template-columns: 1fr;
+  }
+}
