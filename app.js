@@ -129,6 +129,16 @@ const DEFAULTS = {
   tolerance: "3000",
 };
 
+const MANUAL_QUOTES_STORAGE_KEY = "holiday-best-fit-manual-quotes";
+const PROVIDER_IDS = {
+  去哪儿: "qunar",
+  携程: "ctrip",
+  飞猪: "fliggy",
+  美团: "meituan",
+  同程: "tongcheng",
+  其他: "manual-other",
+};
+
 const DEMO_FLIGHT_FIXTURES = {
   "ca-rockies": {
     price: 6267,
@@ -190,13 +200,29 @@ const resultTitle = document.querySelector("#results-title");
 const resultSummary = document.querySelector("#result-summary");
 const decisionRoute = document.querySelector("#decision-route");
 const decisionCallout = document.querySelector("#decision-callout");
+const decisionProcess = document.querySelector("#decision-process");
 const providerStatus = document.querySelector("#provider-status");
 const formError = document.querySelector("#form-error");
 const toast = document.querySelector("#toast");
+const calibratorToggle = document.querySelector("#toggle-calibrator");
+const manualQuoteForm = document.querySelector("#manual-quote-form");
+const manualRouteSelect = document.querySelector("#manual-route");
+const manualProviderSelect = document.querySelector("#manual-provider");
+const manualPriceInput = document.querySelector("#manual-price");
+const manualCapturedAtInput = document.querySelector("#manual-captured-at");
+const manualDeepLinkInput = document.querySelector("#manual-deep-link");
+const manualEvidenceInput = document.querySelector("#manual-evidence");
+const manualNoteInput = document.querySelector("#manual-note");
+const evidencePreview = document.querySelector("#evidence-preview");
+const manualQuoteList = document.querySelector("#manual-quote-list");
+const clearManualRouteButton = document.querySelector("#clear-manual-route");
+const clearAllManualQuotesButton = document.querySelector("#clear-all-manual-quotes");
 
 let currentResult = null;
 let toastTimer = null;
 let activeSearch = 0;
+let manualQuotes = loadManualQuotes();
+let pendingEvidence = null;
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("zh-CN", {
@@ -260,6 +286,122 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function formatDateTimeInput(date = new Date()) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function formatSourceTime(value) {
+  if (!value) return "时间待核验";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function loadManualQuotes() {
+  try {
+    const stored = localStorage.getItem(MANUAL_QUOTES_STORAGE_KEY);
+    if (!stored) return {};
+    const parsed = JSON.parse(stored);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveManualQuotes() {
+  try {
+    localStorage.setItem(MANUAL_QUOTES_STORAGE_KEY, JSON.stringify(manualQuotes));
+  } catch {
+    showToast("浏览器存储不可用，手动报价仅本次生效");
+  }
+}
+
+function getRouteById(routeId) {
+  return Object.values(DESTINATIONS)
+    .flatMap((destination) => destination.routes)
+    .find((route) => route.id === routeId);
+}
+
+function getCurrentDestination() {
+  return DESTINATIONS[countryInput.value] || DESTINATIONS.canada;
+}
+
+function updateManualRouteOptions() {
+  const destination = getCurrentDestination();
+  manualRouteSelect.innerHTML = destination.routes
+    .map((route) => `<option value="${escapeHtml(route.id)}">${escapeHtml(route.name)}｜${escapeHtml(route.region)}</option>`)
+    .join("");
+  hydrateManualFormForRoute();
+  renderManualQuoteList();
+}
+
+function hydrateManualFormForRoute() {
+  const quote = manualQuotes[manualRouteSelect.value];
+  manualProviderSelect.value = quote?.providerDisplayName || "去哪儿";
+  manualPriceInput.value = quote?.price || "";
+  manualCapturedAtInput.value = quote?.priceCapturedAt ? formatDateTimeInput(new Date(quote.priceCapturedAt)) : formatDateTimeInput();
+  manualDeepLinkInput.value = quote?.deepLinkUrl || "";
+  manualNoteInput.value = quote?.note || "";
+  pendingEvidence = quote?.evidenceImageName ? { name: quote.evidenceImageName, url: "" } : null;
+  renderEvidencePreview();
+}
+
+function renderEvidencePreview() {
+  if (!pendingEvidence) {
+    evidencePreview.hidden = true;
+    evidencePreview.innerHTML = "";
+    return;
+  }
+  const image = pendingEvidence.url
+    ? `<img src="${escapeHtml(pendingEvidence.url)}" alt="${escapeHtml(pendingEvidence.name)} 报价截图预览" />`
+    : "";
+  evidencePreview.hidden = false;
+  evidencePreview.innerHTML = `
+    ${image}
+    <div>
+      <strong>${escapeHtml(pendingEvidence.name)}</strong>
+      <span>截图仅在当前浏览器本地预览，不上传服务器。</span>
+    </div>
+  `;
+}
+
+function renderManualQuoteList() {
+  const destination = getCurrentDestination();
+  const quotes = destination.routes.map((route) => manualQuotes[route.id]).filter(Boolean);
+  if (!quotes.length) {
+    manualQuoteList.innerHTML = '<p class="manual-empty">当前未录入真实报价，系统使用 DEMO 报价展示决策链路。</p>';
+    return;
+  }
+  manualQuoteList.innerHTML = `
+    <div class="manual-list-heading">已生效手动报价</div>
+    ${quotes
+      .map((quote) => {
+        const route = getRouteById(quote.routeId);
+        const link = quote.canDeepLink
+          ? `<a href="${escapeHtml(quote.deepLinkUrl)}" target="_blank" rel="noopener noreferrer">核验链接</a>`
+          : "<span>无核验链接</span>";
+        return `
+          <div class="manual-quote-row" data-manual-row="${escapeHtml(quote.routeId)}">
+            <strong>${escapeHtml(route?.name || quote.routeId)}</strong>
+            <span>${escapeHtml(quote.providerDisplayName)} · ${formatCurrency(quote.price)} · ${formatSourceTime(
+              quote.priceCapturedAt,
+            )}</span>
+            ${quote.evidenceImageName ? `<small>截图：${escapeHtml(quote.evidenceImageName)}</small>` : ""}
+            ${link}
+          </div>
+        `;
+      })
+      .join("")}
+  `;
+}
+
 function getPreferences() {
   return [...form.querySelectorAll('input[name="preference"]:checked')].map((input) => input.value);
 }
@@ -311,6 +453,54 @@ function scoreRoute(route, state, minPrice, maxPrice) {
   };
 }
 
+function applyManualQuotes(searchData, state) {
+  const destination = DESTINATIONS[state.country];
+  const returnDate = addDays(parseDate(state.startDate), state.duration - 1).toISOString().slice(0, 10);
+  const manualForCountry = destination.routes.map((route) => manualQuotes[route.id]).filter(Boolean);
+  const manualRouteIds = new Set(manualForCountry.map((quote) => quote.routeId));
+  const nonManualQuotes = searchData.quotes.filter((quote) => !manualRouteIds.has(quote.routeId));
+  const manualQuoteObjects = manualForCountry.map((manualQuote) => {
+    const route = destination.routes.find((item) => item.id === manualQuote.routeId);
+    const baseQuote =
+      searchData.quotes.find((quote) => quote.routeId === manualQuote.routeId) || buildLocalDemoQuote(route, state, returnDate);
+    return {
+      ...baseQuote,
+      id: `manual-${manualQuote.routeId}`,
+      providerId: manualQuote.providerId,
+      providerDisplayName: manualQuote.providerDisplayName,
+      price: manualQuote.price,
+      currency: "CNY",
+      priceCapturedAt: manualQuote.priceCapturedAt,
+      freshnessSeconds: null,
+      canDeepLink: manualQuote.canDeepLink,
+      deepLinkUrl: manualQuote.deepLinkUrl,
+      verificationNote: manualQuote.verificationNote,
+      isLive: false,
+      sourceType: "MANUAL",
+      evidenceImageName: manualQuote.evidenceImageName || "",
+      note: manualQuote.note || "",
+    };
+  });
+  return {
+    ...searchData,
+    mode: manualQuoteObjects.length ? "MANUAL_CALIBRATED" : searchData.mode,
+    quotes: [...manualQuoteObjects, ...nonManualQuotes],
+    manualQuoteCount: manualQuoteObjects.length,
+  };
+}
+
+function getQuoteSourceLabel(quote) {
+  if (quote?.sourceType === "MANUAL") return "手动报价";
+  if (quote?.isLive) return "实时含税价";
+  return "非实时报价";
+}
+
+function getPriceLabel(quote) {
+  if (quote?.sourceType === "MANUAL") return "人均手动报价";
+  if (quote?.isLive) return "人均实时交通价";
+  return "人均演示交通价";
+}
+
 function buildReason(route, state, cheapest) {
   const topPreferences = state.preferences
     .slice()
@@ -355,7 +545,7 @@ function renderRouteBar(route) {
 
 function renderCallout(top, cheapest, state, destination, searchData) {
   const diff = top.perPerson - cheapest.perPerson;
-  const priceType = top.selectedQuote?.isLive ? "实时交通价" : "演示交通价";
+  const priceType = top.selectedQuote?.sourceType === "MANUAL" ? "手动报价" : top.selectedQuote?.isLive ? "实时交通价" : "演示交通价";
   let title = "偏好与价格共同支持这个选择";
   let detail = `${top.name}与当前兴趣匹配度最高，同时没有触发明显的价格牺牲。`;
 
@@ -372,7 +562,12 @@ function renderCallout(top, cheapest, state, destination, searchData) {
     detail = `更匹配兴趣的方案比最低价人均高 ${formatCurrency(diff)}，超过当前容忍线，系统优先保留性价比。`;
   }
 
-  const scope = searchData?.mode === "DEMO" ? `${destination.routes.length} 条路线样例` : `${destination.routes.length} 条路线实时结果`;
+  const scope =
+    searchData?.mode === "MANUAL_CALIBRATED"
+      ? `${destination.routes.length} 条路线，其中 ${searchData.manualQuoteCount} 条已用手动报价校准`
+      : searchData?.mode === "DEMO"
+        ? `${destination.routes.length} 条路线样例`
+        : `${destination.routes.length} 条路线实时结果`;
   decisionCallout.innerHTML = `<strong>${title}</strong><span>${detail} 本次已比较 ${scope}。</span>`;
 }
 
@@ -423,8 +618,8 @@ function renderItinerary(quote) {
 function renderQuoteSource(route) {
   const quote = route.selectedQuote;
   if (!quote) return "";
-  const liveClass = quote.isLive ? "is-live" : "is-demo";
-  const sourceLabel = quote.isLive ? "实时含税价" : "非实时报价";
+  const liveClass = quote.sourceType === "MANUAL" ? "is-manual" : quote.isLive ? "is-live" : "is-demo";
+  const sourceLabel = getQuoteSourceLabel(quote);
   const verificationAction = quote.canDeepLink
     ? `<a class="verify-link" href="${escapeHtml(quote.deepLinkUrl)}" target="_blank" rel="noopener noreferrer">官网核验</a>`
     : `<button class="verify-link is-disabled" type="button" disabled title="${escapeHtml(
@@ -442,12 +637,37 @@ function renderQuoteSource(route) {
       <div>
         <span class="quote-status">${sourceLabel}</span>
         <strong>${escapeHtml(quote.providerDisplayName)}</strong>
-        <small>${formatCapturedAt(quote.priceCapturedAt)}</small>
+        <small>${quote.sourceType === "MANUAL" ? `录入 ${formatSourceTime(quote.priceCapturedAt)}` : formatCapturedAt(quote.priceCapturedAt)}</small>
       </div>
       ${verificationAction}
     </div>
     ${alternatives ? `<div class="alternate-quotes"><strong>其他报价</strong>${alternatives}</div>` : ""}
     <p class="verification-note">${escapeHtml(quote.verificationNote)}</p>
+    ${quote.evidenceImageName ? `<p class="verification-note">截图凭证：${escapeHtml(quote.evidenceImageName)}（仅本地人工核验）</p>` : ""}
+  `;
+}
+
+function renderThreshold(route, state, cheapest) {
+  const diff = route.perPerson - cheapest.perPerson;
+  const tolerance = Math.max(1, state.tolerance);
+  const ratio = Math.min(100, Math.round((diff / tolerance) * 100));
+  const status = diff === 0 ? "is-best" : diff > tolerance ? "is-over" : ratio >= 80 ? "is-warn" : "is-ok";
+  const label =
+    diff === 0
+      ? `当前最低价，低于或等于其他候选方案`
+      : diff > tolerance
+        ? `比最低价高 ${formatCurrency(diff)}，已超过 ${formatCurrency(tolerance)} 容忍线`
+        : `比最低价高 ${formatCurrency(diff)}，仍在 ${formatCurrency(tolerance)} 容忍范围内`;
+  return `
+    <div class="threshold-meter ${status}">
+      <div class="threshold-meter-top">
+        <strong>价格阈值</strong>
+        <span>${label}</span>
+      </div>
+      <div class="threshold-track" aria-hidden="true">
+        <span style="width: ${diff === 0 ? 8 : ratio}%"></span>
+      </div>
+    </div>
   `;
 }
 
@@ -456,7 +676,7 @@ function renderCard(route, ranked, state, index, dates) {
   const cheapest = ranked.reduce((best, item) => (item.perPerson < best.perPerson ? item : best));
   const effectiveDays = Math.max(4, Math.min(route.effectiveDays, state.duration - 1.2)).toFixed(1);
   const badgeMarkup = badges.map((badge) => `<span class="plan-badge">${badge}</span>`).join("");
-  const priceLabel = route.selectedQuote?.isLive ? "人均实时交通价" : "人均演示交通价";
+  const priceLabel = getPriceLabel(route.selectedQuote);
 
   return `
     <article class="plan-card ${index === 0 ? "is-top" : ""}" data-plan-id="${route.id}">
@@ -472,6 +692,7 @@ function renderCard(route, ranked, state, index, dates) {
       <p class="plan-route">${route.route}</p>
       ${renderItinerary(route.selectedQuote)}
       ${renderQuoteSource(route)}
+      ${renderThreshold(route, state, cheapest)}
       <div class="metric-grid">
         <div class="metric"><span>建议日期</span><strong>${dates}</strong></div>
         <div class="metric"><span>请假上限</span><strong>${state.leaveDays} 天</strong></div>
@@ -492,7 +713,12 @@ function renderCard(route, ranked, state, index, dates) {
 }
 
 function renderProviderStatus(searchData) {
-  const modeText = searchData.mode === "DEMO" ? "当前为演示降级" : "已获取部分实时报价";
+  const modeText =
+    searchData.mode === "MANUAL_CALIBRATED"
+      ? "已应用手动报价校准"
+      : searchData.mode === "DEMO"
+        ? "当前为演示降级"
+        : "已获取部分实时报价";
   providerStatus.innerHTML = `
     <div class="provider-status-heading">
       <div><strong>${modeText}</strong><span>${escapeHtml(searchData.rankingPolicy)}</span></div>
@@ -515,10 +741,62 @@ function renderProviderStatus(searchData) {
   `;
 }
 
+function renderDecisionProcess(state, destination, ranked, cheapest, searchData) {
+  const top = ranked[0];
+  const preferenceText = state.preferences.map((key) => PREFERENCE_LABELS[key]).join("、");
+  const quoteSource =
+    searchData.mode === "MANUAL_CALIBRATED"
+      ? `已用 ${searchData.manualQuoteCount} 条手动报价校准`
+      : searchData.mode === "DEMO"
+        ? "使用 DEMO 样例报价"
+        : "包含服务端返回报价";
+  const diff = top.perPerson - cheapest.perPerson;
+  const diffText =
+    diff === 0
+      ? "当前推荐也是最低交通成本方案"
+      : diff <= state.tolerance
+        ? `推荐方案比最低价高 ${formatCurrency(diff)}，仍在容忍范围内`
+        : `推荐方案比最低价高 ${formatCurrency(diff)}，已超过容忍线`;
+
+  decisionProcess.innerHTML = `
+    <div class="decision-process-header">
+      <div>
+        <p class="section-kicker">Agent 决策过程</p>
+        <h3>从约束到推荐的 4 步判断</h3>
+      </div>
+      <span>${escapeHtml(quoteSource)}</span>
+    </div>
+    <div class="process-grid">
+      <div class="process-step">
+        <b>1</b>
+        <strong>理解约束</strong>
+        <span>${state.duration}天 · 最多请假${state.leaveDays}天 · ${state.travelers}人 · 偏好${escapeHtml(preferenceText)}</span>
+      </div>
+      <div class="process-step">
+        <b>2</b>
+        <strong>生成候选</strong>
+        <span>当前比较 ${destination.routes.length} 条${escapeHtml(destination.label)}路线，覆盖价格、交通复杂度和首次到访适配度。</span>
+      </div>
+      <div class="process-step">
+        <b>3</b>
+        <strong>计算取舍</strong>
+        <span>综合交通成本、兴趣匹配、出行轻松度、有效游玩时间和人均 ${formatCurrency(state.tolerance)} 价格容忍线。</span>
+      </div>
+      <div class="process-step">
+        <b>4</b>
+        <strong>解释推荐</strong>
+        <span>${escapeHtml(top.name)} 排名第一；${diffText}，当前报价以${escapeHtml(getQuoteSourceLabel(top.selectedQuote))}为准。</span>
+      </div>
+    </div>
+  `;
+}
+
 function renderLoading(state) {
   const destination = DESTINATIONS[state.country];
   resultTitle.textContent = `上海 → ${destination.label}`;
   resultSummary.textContent = "正在查询 OTA 接入状态与可用报价…";
+  decisionCallout.innerHTML = "";
+  decisionProcess.innerHTML = '<div class="provider-loading"><span></span>准备决策过程</div>';
   providerStatus.innerHTML = '<div class="provider-loading"><span></span>查询服务端报价</div>';
   resultGrid.innerHTML = Array.from({ length: 3 }, () => '<div class="plan-skeleton" aria-hidden="true"></div>').join("");
 }
@@ -602,8 +880,9 @@ function buildLocalDemoSearchData(state, reason) {
 
 function renderResults(state, searchData) {
   const destination = DESTINATIONS[state.country];
+  const calibratedSearchData = applyManualQuotes(searchData, state);
   const routes = destination.routes.map((route) => {
-    const quotes = searchData.quotes.filter((quote) => quote.routeId === route.id);
+    const quotes = calibratedSearchData.quotes.filter((quote) => quote.routeId === route.id);
     const selectedQuote = quotes[0] || null;
     return { ...route, fare: selectedQuote?.price || route.fare, selectedQuote, quotes };
   });
@@ -625,12 +904,14 @@ function renderResults(state, searchData) {
   )}`;
   renderRouteBar(ranked[0]);
   const cheapest = ranked.reduce((best, item) => (item.perPerson < best.perPerson ? item : best));
-  renderCallout(ranked[0], cheapest, state, destination, searchData);
-  renderProviderStatus(searchData);
+  renderCallout(ranked[0], cheapest, state, destination, calibratedSearchData);
+  renderDecisionProcess(state, destination, ranked, cheapest, calibratedSearchData);
+  renderProviderStatus(calibratedSearchData);
   resultGrid.innerHTML = ranked.map((route, index) => renderCard(route, ranked, state, index, dates)).join("");
 
-  currentResult = { state, destination, ranked, dates, searchData };
+  currentResult = { state, destination, ranked, dates, searchData: calibratedSearchData };
   saveState(state);
+  renderManualQuoteList();
 }
 
 async function runSearch(state, { scroll = false } = {}) {
@@ -697,8 +978,12 @@ function showToast(message) {
 function buildPlanText(route) {
   if (!currentResult) return "";
   const quote = route.selectedQuote;
-  const priceType = quote?.isLive ? "实时交通价" : "演示交通价";
-  const source = quote ? `${quote.providerDisplayName}（${formatCapturedAt(quote.priceCapturedAt)}）` : "暂无来源";
+  const priceType = quote?.sourceType === "MANUAL" ? "手动报价" : quote?.isLive ? "实时交通价" : "演示交通价";
+  const source = quote
+    ? `${quote.providerDisplayName}（${
+        quote.sourceType === "MANUAL" ? `录入 ${formatSourceTime(quote.priceCapturedAt)}` : formatCapturedAt(quote.priceCapturedAt)
+      }）`
+    : "暂无来源";
   return `假期最优解｜${route.name}\n${route.route}\n日期：${currentResult.dates}\n人均${priceType}：${formatCurrency(
     route.perPerson,
   )}\n报价来源：${source}\n同行总价：${formatCurrency(route.totalPrice)}\n推荐理由：${buildReason(
@@ -740,7 +1025,94 @@ document.querySelectorAll("[data-country]").forEach((button) => {
   button.addEventListener("click", () => {
     countryInput.value = button.dataset.country;
     document.querySelectorAll("[data-country]").forEach((item) => item.classList.toggle("is-active", item === button));
+    updateManualRouteOptions();
   });
+});
+
+calibratorToggle.addEventListener("click", () => {
+  const nextHidden = !manualQuoteForm.hidden;
+  manualQuoteForm.hidden = nextHidden;
+  calibratorToggle.setAttribute("aria-expanded", String(!nextHidden));
+  calibratorToggle.textContent = nextHidden ? "录入 OTA 报价" : "收起录入";
+  if (!nextHidden) {
+    hydrateManualFormForRoute();
+    manualRouteSelect.focus();
+  }
+});
+
+manualRouteSelect.addEventListener("change", hydrateManualFormForRoute);
+
+manualEvidenceInput.addEventListener("change", () => {
+  const file = manualEvidenceInput.files?.[0];
+  if (!file) {
+    pendingEvidence = null;
+    renderEvidencePreview();
+    return;
+  }
+  if (!/^image\/(png|jpeg)$/.test(file.type)) {
+    manualEvidenceInput.value = "";
+    pendingEvidence = null;
+    renderEvidencePreview();
+    showToast("仅支持 PNG 或 JPG 截图");
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  pendingEvidence = { name: file.name, url };
+  renderEvidencePreview();
+});
+
+manualQuoteForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const routeId = manualRouteSelect.value;
+  const price = Number(manualPriceInput.value);
+  if (!routeId || !Number.isFinite(price) || price <= 0) {
+    showToast("请填写有效的人均机票价");
+    return;
+  }
+  const providerDisplayName = manualProviderSelect.value;
+  const deepLinkUrl = manualDeepLinkInput.value.trim();
+  const capturedAt = manualCapturedAtInput.value ? new Date(manualCapturedAtInput.value).toISOString() : new Date().toISOString();
+  manualQuotes[routeId] = {
+    routeId,
+    providerId: PROVIDER_IDS[providerDisplayName] || "manual-other",
+    providerDisplayName,
+    price: Math.round(price),
+    priceCapturedAt: capturedAt,
+    canDeepLink: Boolean(deepLinkUrl),
+    deepLinkUrl: deepLinkUrl || null,
+    verificationNote: deepLinkUrl
+      ? "用户手动录入 OTA 报价，已提供平台页面用于最终核验。"
+      : "用户手动录入 OTA 报价，未提供平台核验链接。",
+    isLive: false,
+    sourceType: "MANUAL",
+    evidenceImageName: pendingEvidence?.name || "",
+    note: manualNoteInput.value.trim(),
+  };
+  saveManualQuotes();
+  await runSearch(getFormState());
+  showToast("已用手动报价重算推荐");
+});
+
+clearManualRouteButton.addEventListener("click", async () => {
+  const routeId = manualRouteSelect.value;
+  if (!manualQuotes[routeId]) {
+    showToast("当前路线没有手动报价");
+    return;
+  }
+  delete manualQuotes[routeId];
+  saveManualQuotes();
+  hydrateManualFormForRoute();
+  await runSearch(getFormState());
+  showToast("已恢复当前路线 DEMO 报价");
+});
+
+clearAllManualQuotesButton.addEventListener("click", async () => {
+  manualQuotes = {};
+  pendingEvidence = null;
+  saveManualQuotes();
+  hydrateManualFormForRoute();
+  await runSearch(getFormState());
+  showToast("已清空全部手动报价");
 });
 
 document.querySelectorAll("[data-step]").forEach((button) => {
@@ -795,8 +1167,10 @@ document.querySelector("#share-result").addEventListener("click", async () => {
 
 const initialState = loadState() || DEFAULTS;
 applyState(initialState);
+updateManualRouteOptions();
 const initialError = validateState(getFormState());
 if (initialError) {
   applyState(DEFAULTS);
+  updateManualRouteOptions();
 }
 runSearch(getFormState());
